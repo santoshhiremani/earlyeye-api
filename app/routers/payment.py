@@ -1,3 +1,4 @@
+from __future__ import annotations
 import hmac, hashlib, json
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request

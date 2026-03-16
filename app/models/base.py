@@ -34,6 +34,8 @@ class Child(Base):
     prescriptions = relationship("Prescription", back_populates="child", cascade="all, delete-orphan")
     scans = relationship("Scan", back_populates="child", cascade="all, delete-orphan")
     daily_logs = relationship("DailyLog", back_populates="child", cascade="all, delete-orphan")
+    risk_results = relationship("RiskResult", back_populates="child", cascade="all, delete-orphan")
+    vision_results = relationship("VisionResult", back_populates="child", cascade="all, delete-orphan")
 
 class Prescription(Base):
     __tablename__ = "prescriptions"
@@ -109,4 +111,41 @@ class OTPStore(Base):
     otp = Column(String(6), nullable=False)
     expires_at = Column(DateTime, nullable=False)
     verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class RiskResult(Base):
+    __tablename__ = "risk_results"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    child_id = Column(UUID(as_uuid=True), ForeignKey("children.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(String(10), nullable=False)
+    level = Column(String(10), default="low")  # low, moderate, high
+    score = Column(Integer, default=0)
+    factors = Column(JSON, default=list)
+    recommendation = Column(Text, default="")
+    answers = Column(JSON, default=dict)  # raw quiz answers
+    created_at = Column(DateTime, default=datetime.utcnow)
+    child = relationship("Child", back_populates="risk_results")
+
+class VisionResult(Base):
+    __tablename__ = "vision_results"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    child_id = Column(UUID(as_uuid=True), ForeignKey("children.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(String(10), nullable=False)
+    optotype_mode = Column(String(20), default="lea")  # lea, tumbling_e
+    right_eye = Column(JSON, nullable=True)   # {pass, correctAnswers, totalQuestions, lowestLinePassed}
+    left_eye = Column(JSON, nullable=True)
+    overall_pass = Column(String(15), default="inconclusive")  # pass, fail, inconclusive
+    recommendation = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    child = relationship("Child", back_populates="vision_results")
+
+class PushToken(Base):
+    __tablename__ = "push_tokens"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(200), nullable=False, unique=True)
+    platform = Column(String(10), default="android")  # android, ios
+    active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

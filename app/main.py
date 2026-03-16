@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.database import engine, Base
 from app.routers import auth, children, scan, payment, logs, admin
+from app.routers import risk_quiz, vision_test, notifications, score, report
 
 settings = get_settings()
 
@@ -35,6 +36,11 @@ app.include_router(scan.router)
 app.include_router(payment.router)
 app.include_router(logs.router)
 app.include_router(admin.router)
+app.include_router(risk_quiz.router)
+app.include_router(vision_test.router)
+app.include_router(notifications.router)
+app.include_router(score.router)
+app.include_router(report.router)
 
 @app.on_event("startup")
 async def startup():

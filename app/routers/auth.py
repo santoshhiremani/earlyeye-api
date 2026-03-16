@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 from datetime import datetime, timedelta
 import random
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,7 +22,7 @@ class VerifyOTPRequest(BaseModel):
     otp: str
 
 class UpdateProfileRequest(BaseModel):
-    name: str | None = None
+    name: Optional[str] = None
 
 @router.post("/send-otp")
 async def send_otp(req: SendOTPRequest, db: AsyncSession = Depends(get_db)):
@@ -28,7 +30,7 @@ async def send_otp(req: SendOTPRequest, db: AsyncSession = Depends(get_db)):
     if len(phone) < 10:
         raise HTTPException(status_code=400, detail="Invalid phone number")
 
-    otp = str(random.randint(100000, 999999))
+    otp = str(random.randint(1000, 9999))
     expires = datetime.utcnow() + timedelta(minutes=5)
 
     await db.execute(delete(OTPStore).where(OTPStore.phone == phone))
@@ -67,15 +69,27 @@ async def verify_otp(req: VerifyOTPRequest, db: AsyncSession = Depends(get_db)):
     await db.refresh(user)
 
     token = create_token(str(user.id))
-    return {"token": token, "user_id": str(user.id), "is_new_user": is_new}
+    return {
+        "token": token,
+        "user_id": str(user.id),
+        "is_new_user": is_new,
+        "name": user.name,
+        "phone": user.phone,
+        "is_subscribed": user.is_subscribed,
+        "scan_credits": user.scan_credits,
+    }
 
 @router.get("/me")
-async def get_me(user: User = Depends(get_current_user)):
+async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from app.models.base import Child
+    children_result = await db.execute(select(Child).where(Child.user_id == user.id))
+    children = children_result.scalars().all()
     return {
         "id": str(user.id), "phone": user.phone, "name": user.name,
         "is_subscribed": user.is_subscribed,
         "subscription_expiry": user.subscription_expiry.isoformat() if user.subscription_expiry else None,
         "scan_credits": user.scan_credits, "weekly_scans_used": user.weekly_scans_used,
+        "children_count": len(children),
     }
 
 @router.patch("/profile")

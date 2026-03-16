@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +18,9 @@ class CreateChildRequest(BaseModel):
     outdoor_goal_hours: float = 2.0
 
 class UpdateChildRequest(BaseModel):
-    name: str | None = None
-    screen_time_limit_hours: float | None = None
-    outdoor_goal_hours: float | None = None
+    name: Optional[str] = None
+    screen_time_limit_hours: Optional[float] = None
+    outdoor_goal_hours: Optional[float] = None
 
 class AddPrescriptionRequest(BaseModel):
     date: str
@@ -85,3 +87,13 @@ async def add_prescription(child_id: str, req: AddPrescriptionRequest, user: Use
     await db.commit()
     await db.refresh(rx)
     return {"id": str(rx.id)}
+
+@router.delete("/{child_id}/prescriptions/{rx_id}")
+async def delete_prescription(child_id: str, rx_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Prescription).where(Prescription.id == rx_id, Prescription.child_id == child_id))
+    rx = result.scalar_one_or_none()
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+    await db.delete(rx)
+    await db.commit()
+    return {"message": "Prescription deleted"}
