@@ -1,0 +1,14 @@
+[Unit]
+Description=EarlyEye FastAPI Backend
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/earlyeye-api
+ExecStart=/opt/earlyeye-api/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+RestartSec=5
+Environment=PATH=/opt/earlyeye-api/venv/bin
+
+[Install]
+WantedBy=multi-user.target
