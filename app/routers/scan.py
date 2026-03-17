@@ -75,77 +75,70 @@ def parse_ai_response(text: str) -> dict:
 
 # ─── Brückner Analysis Prompt (14 conditions) ────────────────────────────────
 
-BRUCKNER_PROMPT = """Analyze this Brückner red reflex test photo. Examine the color, brightness, symmetry, and shape of the red reflex in both eyes.
+BRUCKNER_PROMPT = """You are performing a Brückner red reflex screening analysis. Examine this image carefully for ANY eye abnormality.
 
-Screen for these 14 conditions and respond ONLY with a JSON object:
+The Brückner test compares the red reflex between both eyes simultaneously. It is recommended by the AAP and AAO for pediatric screening.
 
-HIGH RELIABILITY (active screening):
-1. Leukocoria — white/grey pupil glow
-2. Absent Red Reflex — dark/black pupil, no glow
-3. Iris Heterochromia — different iris colors between eyes
-4. Ptosis — eyelid drooping over pupil
-5. Head Tilt — tilted head position
-6. Aniridia — very large pupil, minimal iris
+CRITICAL INSTRUCTIONS:
+- Be HIGHLY SENSITIVE to abnormalities. When in doubt, flag as "refer" NOT "normal"
+- A white, pale, grey, or absent reflex in EITHER eye = ALWAYS "urgent"
+- ANY asymmetry between eyes = at minimum "refer"
+- If you see ANY sign of pathology, even subtle, classify as "refer" or "urgent"
+- Do NOT default to "normal" unless BOTH eyes show clearly symmetric, bright red/orange reflexes
+- This is a SCREENING tool — false positives (over-referring) are far safer than false negatives (missing pathology)
 
-MODERATE RELIABILITY (active screening):
-7. Reflex Asymmetry — brightness difference between eyes
-8. Coloboma — keyhole/notched pupil shape
-9. Corneal Opacity — white/cloudy area on corneal surface
-10. Media Opacity — hazy/cloudy reflex texture
+SCREEN FOR THESE 6 CONDITIONS:
 
-INFORMATIONAL (report but don't flag as urgent):
-11. Crescent Shadow — dark arc at pupil edge
-12. Eyelid Abnormality — swelling, crusting, asymmetry
-13. Color Abnormality — dull/greenish/yellow reflex tint
-14. Pupil Irregularity — non-circular pupil shape
+1. LEUKOCORIA — ANY white, pale, yellow, or grey pupillary glow. Even a FAINT whitish tinge in one eye compared to the other. This is the most critical finding — always "urgent". Causes: retinoblastoma, cataract, ROP, Coats disease, PHPV.
 
-Respond with this exact JSON structure:
+2. ABSENT RED REFLEX — One or both pupils appear dark/black with no visible glow. Normal eyes MUST show red/orange glow with flash. If one eye is dark = "urgent".
+
+3. REFLEX ASYMMETRY — ANY difference in brightness, color hue, or size between the two reflexes. Even subtle differences matter. One eye brighter than other = "refer". Significant difference = "urgent". Causes: anisometropia, strabismus, unilateral pathology.
+
+4. CORNEAL OPACITY — Any white, grey, or cloudy patch on the corneal surface. Look carefully at the area in front of the iris/pupil.
+
+5. MEDIA OPACITY — Hazy, cloudy, irregular, or non-uniform texture within the red reflex. A normal reflex should be smooth and uniformly colored. Any haziness = "refer".
+
+6. PTOSIS — Eyelid drooping to cover ANY part of the pupil. Compare lid height between eyes.
+
+SEVERITY (err on the side of caution):
+- "normal" — ONLY if both reflexes are clearly symmetric, bright red/orange, uniform texture, no opacity, lids clear. You must be confident to say normal.
+- "refer" — ANY subtle asymmetry, mild color difference, questionable finding. When uncertain, use this.
+- "urgent" — ANY leukocoria (even faint), absent reflex, gross asymmetry, dense opacity. 
+
+Respond ONLY with this JSON:
 {
   "severity": "normal" | "refer" | "urgent",
-  "headline": "Brief one-line summary",
-  "findings": ["Finding 1", "Finding 2"],
+  "headline": "Brief clinical summary",
+  "findings": ["Specific observation 1", "Specific observation 2"],
   "conditions": [
-    {"name": "Leukocoria", "present": false, "severity": "normal", "description": "Not detected"},
-    ...for all 14 conditions
+    {"name": "Leukocoria", "present": false, "severity": "normal", "description": "Detailed observation"},
+    {"name": "Absent Red Reflex", "present": false, "severity": "normal", "description": "Detailed observation"},
+    {"name": "Reflex Asymmetry", "present": false, "severity": "normal", "description": "Detailed observation"},
+    {"name": "Corneal Opacity", "present": false, "severity": "normal", "description": "Detailed observation"},
+    {"name": "Media Opacity", "present": false, "severity": "normal", "description": "Detailed observation"},
+    {"name": "Ptosis", "present": false, "severity": "normal", "description": "Detailed observation"}
   ],
-  "recommendation": "What the parent should do next",
-  "urgency": "Timeline description",
-  "followUpTimeline": "When to follow up",
-  "confidence": 85,
+  "recommendation": "Specific action for parent",
+  "urgency": "none" | "routine" | "soon" | "urgent" | "emergent",
+  "followUpTimeline": "Routine screening in 6 months" | "Eye exam within 3 months" | "Ophthalmologist within 2 weeks" | "Immediate referral",
+  "confidence": 0-100,
   "imageQuality": "good" | "acceptable" | "poor",
-  "refractiveEstimate": {
-    "available": false,
-    "right": {"sph": "N/A", "cyl": "N/A", "axis": "N/A"},
-    "left": {"sph": "N/A", "cyl": "N/A", "axis": "N/A"},
-    "interpretation": "Refractive estimate not available from this image"
-  }
-}"""
+  "disclaimer": "AI screening tool only. Not a medical diagnosis. All findings should be confirmed by a qualified ophthalmologist."
+}
 
-PRECHECK_PROMPT = """Look at this photo. Answer ONLY with a JSON object:
-{
-  "is_eye_photo": true/false,
-  "eyes_open": true/false,
-  "both_eyes_visible": true/false,
-  "child_face": true/false,
-  "dark_room": true/false,
-  "flash_visible": true/false,
-  "is_valid": true/false,
-  "reason": "string explaining why valid or not"
-}"""
+RULES:
+- Be conservative: when uncertain, escalate severity
+- Leukocoria = ALWAYS urgent, no exceptions
+- Describe exactly what you SEE in each condition's description field
+- Do not estimate refractive error
+- Confidence should reflect image quality AND your certainty about findings"""
+
+
+# Ultra-short precheck — accepts real photos AND photos of screens showing eyes
+PRECHECK_PROMPT = """Does this image show eyes (child or adult)? Accept real photos, photos of screens, printed images, or any image where eyes with pupils are visible. Reply ONLY: {"valid":true} or {"valid":false,"reason":"brief reason"}"""
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
-
-@router.post("/precheck")
-async def precheck(image: UploadFile = File(...), user: User = Depends(get_current_user)):
-    """Eye photo validation using Haiku 3 — cost: ₹0.06"""
-    img_bytes = await image.read()
-    # Compress heavily for precheck (just need to see if it's an eye)
-    compressed = compress_image(img_bytes, max_size=400, quality=50)
-    b64 = base64.b64encode(compressed).decode()
-
-    result_text = await call_claude(settings.MODEL_PRECHECK, b64, PRECHECK_PROMPT, 200)
-    result = parse_ai_response(result_text)
-    return {"result": result, "model": settings.MODEL_PRECHECK}
 
 @router.post("/analyze")
 async def analyze(
@@ -155,7 +148,7 @@ async def analyze(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Two-tier Brückner scan: Haiku 4.5 → Sonnet 4.6 if flagged.
+    """Three-stage scan: Precheck (₹0.05) → Haiku (₹0.55) → Sonnet if flagged (₹1.63).
     Saves original image, compressed image, and full JSON result to VPS."""
 
     # ── 1. Check scan limits ──────────────────────────────────────────────
@@ -179,25 +172,56 @@ async def analyze(
     img_hash = hashlib.md5(img_bytes).hexdigest()[:8]
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     scan_id_short = uuid.uuid4().hex[:8]
-
-    # ── 4. Save original image to disk ────────────────────────────────────
     scan_dir = os.path.join(settings.STORAGE_PATH, "scans", str(child_id))
+
+    # ── 4. Ultra-cheap precheck (₹0.05) — reject non-eye photos early ───
+    try:
+        precheck_b64 = base64.b64encode(compress_image(img_bytes, max_size=300, quality=30)).decode()
+        precheck_raw = await call_claude(settings.MODEL_TIER1, precheck_b64, PRECHECK_PROMPT, 50)
+        precheck_clean = precheck_raw.replace("```json", "").replace("```", "").strip()
+        precheck_result = json.loads(precheck_clean)
+        if not precheck_result.get("valid", True):
+            reason = precheck_result.get("reason", "Not a valid eye photo")
+            return {
+                "scan_id": None,
+                "result": {
+                    "severity": "invalid",
+                    "headline": reason,
+                    "findings": [],
+                    "conditions": [],
+                    "recommendation": "Please retake: dark room, flash on, both eyes open, 30-40cm away.",
+                    "urgency": "none",
+                    "followUpTimeline": "Retake photo",
+                    "confidence": 0,
+                    "imageQuality": "poor",
+                    "disclaimer": "Photo validation failed.",
+                },
+                "model": settings.MODEL_TIER1,
+                "tiered": False,
+                "cost_inr": 0.05,
+                "image_url": None,
+                "files": {},
+            }
+    except Exception:
+        pass  # Precheck failed — proceed with analysis anyway
+
+    # ── 5. Save original image to disk (only after precheck passes) ───────
     original_filename = f"{timestamp}_{scan_id_short}_original.jpg"
     original_path = save_file(scan_dir, original_filename, img_bytes)
 
-    # ── 5. Compress for AI analysis (saves ~50% tokens) ───────────────────
+    # ── 6. Compress for AI analysis (saves ~50% tokens) ───────────────────
     compressed = compress_image(img_bytes, max_size=800, quality=70)
     compressed_filename = f"{timestamp}_{scan_id_short}_compressed.jpg"
     compressed_path = save_file(scan_dir, compressed_filename, compressed)
     b64 = base64.b64encode(compressed).decode()
 
-    # ── 6. Tier 1: Haiku 4.5 screening ───────────────────────────────────
+    # ── 7. Tier 1: Haiku 4.5 screening ───────────────────────────────────
     analysis_prompt = prompt or BRUCKNER_PROMPT
     tier1_raw = await call_claude(settings.MODEL_TIER1, b64, analysis_prompt, 1500)
     tier1_result = parse_ai_response(tier1_raw)
 
     severity = tier1_result.get("severity", "normal")
-    cost = 0.64  # Haiku 4.5 cost in INR
+    cost = 0.55  # Haiku 4.5 cost in INR
     model_used = settings.MODEL_TIER1
     tiered = False
     tier1_severity = None
