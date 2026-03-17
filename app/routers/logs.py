@@ -34,8 +34,13 @@ async def get_or_create_log(db: AsyncSession, child_id: str, date: str) -> Daily
     result = await db.execute(select(DailyLog).where(DailyLog.child_id == child_id, DailyLog.date == date))
     log = result.scalar_one_or_none()
     if not log:
-        log = DailyLog(child_id=child_id, date=date)
+        log = DailyLog(child_id=child_id, date=date, screen_minutes=0, outdoor_minutes=0, eye_breaks_done=0)
         db.add(log)
+        await db.flush()
+    # Ensure no None values
+    if log.screen_minutes is None: log.screen_minutes = 0
+    if log.outdoor_minutes is None: log.outdoor_minutes = 0
+    if log.eye_breaks_done is None: log.eye_breaks_done = 0
     return log
 
 @router.post("/screen-time")
@@ -48,7 +53,7 @@ async def log_screen_time(req: LogScreenTimeRequest, user: User = Depends(get_cu
 @router.post("/outdoor")
 async def log_outdoor(req: LogOutdoorRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     log = await get_or_create_log(db, req.child_id, req.date)
-    log.outdoor_minutes += req.minutes
+    log.outdoor_minutes = req.minutes
     await db.commit()
     return {"outdoor_minutes": log.outdoor_minutes}
 
@@ -58,6 +63,28 @@ async def log_eye_break(req: LogEyeBreakRequest, user: User = Depends(get_curren
     log.eye_breaks_done += 1
     await db.commit()
     return {"eye_breaks_done": log.eye_breaks_done}
+
+class LogExerciseRequest(BaseModel):
+    child_id: str
+    date: str
+    exercise_id: str
+    exercise_title: str
+
+@router.post("/exercise")
+async def log_exercise(req: LogExerciseRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from datetime import datetime as dt
+    log = await get_or_create_log(db, req.child_id, req.date)
+    exercises = log.exercises_done or []
+    # Don't duplicate same exercise on same day
+    if not any(e["id"] == req.exercise_id for e in exercises):
+        exercises.append({
+            "id": req.exercise_id,
+            "title": req.exercise_title,
+            "completed_at": dt.utcnow().isoformat(),
+        })
+        log.exercises_done = exercises
+        await db.commit()
+    return {"exercises_done": log.exercises_done, "count": len(log.exercises_done)}
 
 @router.post("/app-usage")
 async def log_app_usage(req: LogAppUsageRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -86,4 +113,5 @@ async def get_week_logs(child_id: str, user: User = Depends(get_current_user), d
     return [{"date": d, "screen_minutes": logs[d].screen_minutes if d in logs else 0,
              "outdoor_minutes": logs[d].outdoor_minutes if d in logs else 0,
              "eye_breaks_done": logs[d].eye_breaks_done if d in logs else 0,
+             "exercises_done": logs[d].exercises_done if d in logs else [],
              "app_usage": logs[d].app_usage if d in logs else []} for d in dates]

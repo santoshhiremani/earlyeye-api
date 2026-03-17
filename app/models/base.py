@@ -85,6 +85,7 @@ class DailyLog(Base):
     screen_minutes = Column(Integer, default=0)
     outdoor_minutes = Column(Integer, default=0)
     eye_breaks_done = Column(Integer, default=0)
+    exercises_done = Column(JSON, default=list)  # [{"id": "20_20_20", "title": "20-20-20 Rule", "completed_at": "..."}]
     app_usage = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
