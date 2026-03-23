@@ -52,7 +52,7 @@ class VerifyPaymentRequest(BaseModel):
 async def verify_payment(req: VerifyPaymentRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     # Verify signature
     msg = f"{req.razorpay_order_id}|{req.razorpay_payment_id}"
-    expected = hmac.new(settings.RAZORPAY_KEY_SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()
+    expected = hmac.HMAC(settings.RAZORPAY_KEY_SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()
     if expected != req.razorpay_signature:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
@@ -80,7 +80,7 @@ async def verify_payment(req: VerifyPaymentRequest, user: User = Depends(get_cur
 async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.body()
     signature = request.headers.get("X-Razorpay-Signature", "")
-    expected = hmac.new(settings.RAZORPAY_WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    expected = hmac.HMAC(settings.RAZORPAY_WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
     if expected != signature:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
@@ -109,3 +109,16 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 await db.commit()
 
     return {"status": "ok"}
+
+@router.get("/status")
+async def payment_status(user: User = Depends(get_current_user)):
+    is_active = user.is_subscribed and (
+        user.subscription_expiry is None or user.subscription_expiry > datetime.utcnow()
+    )
+    return {
+        "is_subscribed": is_active,
+        "subscription_expiry": user.subscription_expiry.isoformat() if user.subscription_expiry else None,
+        "scan_credits": user.scan_credits or 0,
+        "weekly_scans_used": user.weekly_scans_used or 0,
+        "weekly_scan_limit": get_settings().PREMIUM_WEEKLY_SCANS if is_active else get_settings().FREE_WEEKLY_SCANS,
+    }
