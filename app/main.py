@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.database import engine, Base
 from app.routers import auth, children, scan, payment, logs, admin
-from app.routers import risk_quiz, vision_test, notifications, score, report
+from app.routers import risk_quiz, vision_test, notifications, score, report, whatsapp
 
 settings = get_settings()
 
@@ -41,6 +41,7 @@ app.include_router(vision_test.router)
 app.include_router(notifications.router)
 app.include_router(score.router)
 app.include_router(report.router)
+app.include_router(whatsapp.router)
 
 @app.on_event("startup")
 async def startup():
