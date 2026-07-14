@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     MSG91_TEMPLATE_ID: str = ""
     MSG91_SENDER_ID: str = "EARLEYE"
 
+    # WhatsApp
+    WHATSAPP_VERIFY_TOKEN: str = "early_eye_webhook_2026"
+
     # Scan limits
     FREE_WEEKLY_SCANS: int = 1
     PREMIUM_WEEKLY_SCANS: int = 4
