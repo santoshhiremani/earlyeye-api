@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.base import User, OTPStore
 from app.utils.auth import create_token, get_current_user
 from app.config import get_settings
+from app.routers.whatsapp import send_whatsapp_message
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 settings = get_settings()
@@ -37,9 +38,16 @@ async def send_otp(req: SendOTPRequest, db: AsyncSession = Depends(get_db)):
     db.add(OTPStore(phone=phone, otp=otp, expires_at=expires))
     await db.commit()
 
-    # TODO: Send OTP via MSG91/Twilio
-    # For now, return OTP in dev mode
-    return {"message": "OTP sent", "dev_otp": otp}
+    # Send OTP via WhatsApp
+    try:
+        await send_whatsapp_message(
+            phone,
+            f"Your EarlyEye OTP is *{otp}*. Valid for 5 minutes. Do not share it with anyone."
+        )
+        return {"message": "OTP sent via WhatsApp"}
+    except Exception:
+        # Fallback: return OTP in response (dev/debug only)
+        return {"message": "OTP sent", "dev_otp": otp}
 
 @router.post("/verify-otp")
 async def verify_otp(req: VerifyOTPRequest, db: AsyncSession = Depends(get_db)):
