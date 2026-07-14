@@ -1,8 +1,30 @@
+import httpx
 from fastapi import APIRouter, Request, Response, HTTPException
 from app.config import get_settings
 
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 settings = get_settings()
+
+WHATSAPP_API_URL = "https://graph.facebook.com/v25.0"
+
+
+async def send_whatsapp_message(to: str, message: str) -> dict:
+    """Send a WhatsApp text message via Meta Cloud API."""
+    url = f"{WHATSAPP_API_URL}/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {"body": message},
+    }
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, headers=headers, json=payload)
+        resp.raise_for_status()
+        return resp.json()
 
 
 @router.get("/webhook")

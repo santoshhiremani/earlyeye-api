@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # WhatsApp
     WHATSAPP_VERIFY_TOKEN: str = "early_eye_webhook_2026"
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
 
     # Scan limits
     FREE_WEEKLY_SCANS: int = 1
