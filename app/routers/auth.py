@@ -45,9 +45,10 @@ async def send_otp(req: SendOTPRequest, db: AsyncSession = Depends(get_db)):
             f"Your EarlyEye OTP is *{otp}*. Valid for 5 minutes. Do not share it with anyone."
         )
         return {"message": "OTP sent via WhatsApp"}
-    except Exception:
+    except Exception as e:
         # Fallback: return OTP in response (dev/debug only)
-        return {"message": "OTP sent", "dev_otp": otp}
+        print(f"[Auth] WhatsApp OTP failed: {e}")
+        return {"message": "OTP sent", "dev_otp": otp, "whatsapp_error": str(e)}
 
 @router.post("/verify-otp")
 async def verify_otp(req: VerifyOTPRequest, db: AsyncSession = Depends(get_db)):

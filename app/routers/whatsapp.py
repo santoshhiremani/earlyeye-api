@@ -23,8 +23,12 @@ async def send_whatsapp_message(to: str, message: str) -> dict:
     }
     async with httpx.AsyncClient() as client:
         resp = await client.post(url, headers=headers, json=payload)
-        resp.raise_for_status()
-        return resp.json()
+        result = resp.json()
+        if not resp.is_success:
+            print(f"[WhatsApp] Error sending to {to}: {result}")
+            raise Exception(result)
+        print(f"[WhatsApp] Sent to {to}: {result}")
+        return result
 
 
 @router.get("/webhook")
